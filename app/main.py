@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from app.cache import TTLCache, build_cache_key
+from app.observability import record_cache_result, trace_generate_request
 from app.provider import DryProvider, GroqProvider, LLMProvider
 
 load_dotenv()
@@ -103,7 +104,11 @@ async def ready():
 
 
 # LLM generation
-@app.post("/generate", response_model=GenerateResponse)
+@app.post(
+    "/generate",
+    response_model=GenerateResponse,
+    dependencies=[Depends(trace_generate_request)],
+)
 async def generate(
     request: GenerateRequest,
     provider: Annotated[LLMProvider, Depends(get_provider)],
@@ -118,6 +123,12 @@ async def generate(
     cached_answer = cache.get(key)
 
     if cached_answer is not None:
+        record_cache_result(
+            status="hit",
+            source="fast_path",
+            provider=provider.name,
+            model=provider.model,
+        )
         return GenerateResponse(
             answer=cached_answer,
             provider=provider.name,
@@ -169,12 +180,19 @@ async def generate(
             detail="LLM provider timed out",
         ) from None
 
-    # Provider boundary: unexpected failures must return a controlled response.
     except Exception:  # noqa: BLE001
         raise HTTPException(
             status_code=502,
             detail="LLM provider unavailable",
         ) from None
+
+    # Record final cache result
+    record_cache_result(
+        status="hit" if was_cached else "miss",
+        source="after_lock" if was_cached else "provider",
+        provider=provider.name,
+        model=provider.model,
+    )
 
     return GenerateResponse(
         answer=answer,

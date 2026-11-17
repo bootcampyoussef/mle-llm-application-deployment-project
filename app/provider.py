@@ -58,6 +58,7 @@ class DryProvider:
             "the approved policy. Please escalate for review."
         )
 
+
 NORTHSTAR_SYSTEM_PROMPT = (
     "You are the Northstar support assistant. "
     "Follow only these approved support policies: "

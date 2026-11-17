@@ -9,12 +9,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_langfuse_client() -> Langfuse | None:
-
     """Return the Langfuse client only when tracing is configured."""
 
-    enabled = os.getenv(
-        "LANGFUSE_TRACING_ENABLED", "false"
-    ).strip().lower() == "true"
+    enabled = os.getenv("LANGFUSE_TRACING_ENABLED", "false").strip().lower() == "true"
 
     if not enabled:
         return None
@@ -32,8 +29,8 @@ def get_langfuse_client() -> Langfuse | None:
         logger.exception("Langfuse initialization failed; tracing disabled")
         return None
 
-async def trace_generate_request():
 
+async def trace_generate_request():
     """Trace requests without affecting API availability."""
 
     client = get_langfuse_client()
@@ -70,6 +67,7 @@ async def trace_generate_request():
         except Exception:
             logger.exception("Langfuse trace cleanup failed")
 
+
 def record_cache_result(
     *,
     status: str,
@@ -95,6 +93,8 @@ def record_cache_result(
         )
     except Exception:
         logger.exception("Langfuse cache telemetry failed")
+
+
 @contextmanager
 def trace_llm_generation(
     *,
@@ -131,6 +131,7 @@ def trace_llm_generation(
                 generation.end()
             except Exception:
                 logger.exception("Langfuse generation end failed")
+
 
 def record_generation_usage(generation: Any, usage: Any) -> None:
     """Record actual provider token usage when available."""

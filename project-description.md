@@ -106,8 +106,7 @@ both the normal response and a negative case.
 
 Deploy the same container as a Free Render web service: choose **New > Web Service** and select **Free** compute.
 Select **Docker**, leave **Root Directory** blank, and set **Dockerfile Path**
-relative to the repository root (for example, `solution/Dockerfile` for the
-reference solution).
+relative to the repository root (`Dockerfile`).
 The Blueprint creation flow asks for a payment method even on the Free
 instance plan, so do not deploy from a Blueprint. Keep secrets in the platform
 configuration. The service is public, so anyone who finds its URL can use your

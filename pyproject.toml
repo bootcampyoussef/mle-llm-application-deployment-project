@@ -16,6 +16,7 @@ dependencies = [
     "pydantic>=2.14.1",
     "python-dotenv>=1.2.4",
     "uvicorn>=0.54.0",
+    "groq>=1.7.0",
 ]
 
 [dependency-groups]
@@ -29,7 +30,7 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["solution/tests"]
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py313"

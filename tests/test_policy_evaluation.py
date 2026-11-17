@@ -8,10 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app, cache, get_provider
 
-CASES_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "data/evaluation/cases.json"
-)
+CASES_PATH = Path(__file__).resolve().parents[1] / "data/evaluation/cases.json"
 
 cases = json.loads(CASES_PATH.read_text())
 
@@ -33,7 +30,6 @@ def reset_cache():
 def test_policy_case(case):
 
     for attempt in range(case["repeat"]):
-
         response = client.post(
             "/generate",
             json={"prompt": case["prompt"]},
@@ -48,6 +44,7 @@ def test_policy_case(case):
             assert term.lower() in answer
 
         assert data["cached"] is (attempt > 0)
+
 
 @pytest.mark.parametrize("provider", ["groq", "unknown"])
 def test_unavailable_provider_not_ready(monkeypatch, provider):
@@ -64,13 +61,12 @@ def test_unavailable_provider_not_ready(monkeypatch, provider):
     assert ready.status_code == 503
     assert generation.status_code == 503
 
+
 def test_unknown_policy_is_declined():
 
     response = client.post(
         "/generate",
-        json={
-            "prompt": "Can Northstar guarantee free products forever?"
-        },
+        json={"prompt": "Can Northstar guarantee free products forever?"},
     )
 
     assert response.status_code == 200
@@ -79,6 +75,7 @@ def test_unknown_policy_is_declined():
 
     assert "cannot confirm" in answer
     assert "approved policy" in answer
+
 
 def test_concurrent_identical_requests():
     class CountingProvider:

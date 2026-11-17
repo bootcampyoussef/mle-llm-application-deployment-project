@@ -43,7 +43,6 @@ flowchart LR
 | [**data/evaluation**](data/evaluation/cases.json) | Shared functional and cache-evaluation cases. |
 | [**data/operations**](data/operations/load_profile.json) | Load profile and service objectives for the report. |
 | [**scripts/load_test.py**](scripts/load_test.py) | Load probe for latency and error-rate checks. |
-| [**solution**](solution/README.md) | Runnable reference scaffold and tests. Inspect after attempting the project. |
 | [**.env.example**](.env.example) | Default settings and credential placeholders. |
 | [**pyproject.toml**](pyproject.toml) | Project configuration and dependencies. |
 | [**uv.lock**](uv.lock) | Dependency lock file. |
@@ -150,7 +149,7 @@ Launch VS Code in the project root folder:
 code .
 ```
 
-Select the Python interpreter in `.venv/` created by `uv sync`. Run the [reference solution commands](solution/README.md#run-the-offline-evaluation) from the project root.
+Select the Python interpreter in `.venv/` created by `uv sync`. Run our project tests from the repository root using `uv run pytest -q`.
 
 ## Required Deliverables
 

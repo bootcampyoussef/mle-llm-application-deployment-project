@@ -1,5 +1,6 @@
 import asyncio
 import os
+from functools import lru_cache
 from typing import Annotated
 
 from dotenv import load_dotenv
@@ -7,23 +8,17 @@ from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from app.cache import TTLCache, build_cache_key
-from app.provider import DryProvider, LLMProvider
+from app.provider import DryProvider, GroqProvider, LLMProvider
 
 load_dotenv()
 app = FastAPI(title="Northstar Support Assistant")
 
 # Service configuration
-REQUEST_TIMEOUT_SECONDS = float(
-    os.getenv("REQUEST_TIMEOUT_SECONDS", "30")
-)
+REQUEST_TIMEOUT_SECONDS = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "30"))
 
-MAX_CONCURRENT_REQUESTS = int(
-    os.getenv("MAX_CONCURRENT_REQUESTS", "4")
-)
+MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "4"))
 
-CACHE_TTL_SECONDS = int(
-    os.getenv("CACHE_TTL_SECONDS", "300")
-)
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "300"))
 
 # Concurrency and caching
 provider_semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
@@ -32,6 +27,7 @@ cache = TTLCache(ttl_seconds=CACHE_TTL_SECONDS)
 
 key_locks: dict[str, asyncio.Lock] = {}
 key_lock_users: dict[str, int] = {}
+
 
 # API schemas
 class StatusResponse(BaseModel):
@@ -56,21 +52,42 @@ class GenerateResponse(BaseModel):
     provider: str
     cached: bool = False
 
+
 # Provider configuration
-def check_provider_config():
+def check_provider_config() -> None:
     provider = os.getenv("MODEL_PROVIDER", "dry").strip().lower()
 
-    if provider != "dry":
-        raise HTTPException(
-            status_code=503,
-            detail="Only MODEL_PROVIDER=dry is currently implemented",
-        )
+    if provider == "dry":
+        return
+
+    if provider == "groq":
+        if not os.getenv("GROQ_API_KEY", "").strip():
+            raise HTTPException(
+                status_code=503,
+                detail="GROQ_API_KEY is required",
+            )
+        return
+
+    raise HTTPException(
+        status_code=503,
+        detail=f"Unsupported MODEL_PROVIDER: {provider}",
+    )
+
+
+@lru_cache(maxsize=1)
+def get_groq_provider() -> GroqProvider:
+    return GroqProvider()
 
 
 def get_provider() -> LLMProvider:
     check_provider_config()
-    return DryProvider()
 
+    provider = os.getenv("MODEL_PROVIDER", "dry").strip().lower()
+
+    if provider == "groq":
+        return get_groq_provider()
+
+    return DryProvider()
 
 
 # Health and readiness
@@ -78,10 +95,12 @@ def get_provider() -> LLMProvider:
 async def health():
     return StatusResponse(status="ok")
 
+
 @app.get("/ready", response_model=StatusResponse)
 async def ready():
     check_provider_config()
     return StatusResponse(status="ready")
+
 
 # LLM generation
 @app.post("/generate", response_model=GenerateResponse)
@@ -104,7 +123,6 @@ async def generate(
             provider=provider.name,
             cached=True,
         )
-
 
     async def call_provider() -> tuple[str, bool]:
         # One lock per unique cache key
@@ -156,7 +174,7 @@ async def generate(
         raise HTTPException(
             status_code=502,
             detail="LLM provider unavailable",
-    ) from None
+        ) from None
 
     return GenerateResponse(
         answer=answer,

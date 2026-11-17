@@ -1,8 +1,6 @@
-"""Keep unit tests independent of live-service settings before app imports."""
+"""Configure a safe, isolated environment for local tests."""
 
 import os
-
-import pytest
 
 os.environ.update(
     {
@@ -19,12 +17,3 @@ os.environ.update(
         "LANGFUSE_SECRET_KEY": "",
     }
 )
-
-
-@pytest.fixture(autouse=True)
-def isolated_api_traces(tmp_path, monkeypatch):
-    from solution.deployment_project.app import service
-    from solution.deployment_project.tracing import JsonlTraceSink
-
-    monkeypatch.setattr(service, "trace_sink", JsonlTraceSink(tmp_path / "api.jsonl"))
-    monkeypatch.setattr(service, "cache", {})

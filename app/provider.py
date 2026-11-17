@@ -3,6 +3,8 @@ from typing import Protocol
 
 from groq import AsyncGroq
 
+from app.observability import record_generation_usage, trace_llm_generation
+
 
 class LLMProvider(Protocol):
     name: str
@@ -28,7 +30,6 @@ class DryProvider:
         temperature: float,
         max_tokens: int,
     ) -> str:
-
         question = prompt.lower()
 
         if "refund" in question and "duplicate" in question:
@@ -56,7 +57,6 @@ class DryProvider:
             "I cannot confirm this request under "
             "the approved policy. Please escalate for review."
         )
-
 
 NORTHSTAR_SYSTEM_PROMPT = (
     "You are the Northstar support assistant. "
@@ -95,19 +95,30 @@ class GroqProvider:
         temperature: float,
         max_tokens: int,
     ) -> str:
-        response = await self._client.chat.completions.create(
+        with trace_llm_generation(
+            provider=self.name,
             model=self.model,
-            messages=[
-                {"role": "system", "content": NORTHSTAR_SYSTEM_PROMPT},
-                {"role": "user", "content": prompt},
-            ],
             temperature=temperature,
             max_tokens=max_tokens,
-        )
+        ) as generation:
+            response = await self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": NORTHSTAR_SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
 
-        answer = response.choices[0].message.content
+            answer = response.choices[0].message.content
 
-        if not answer:
-            raise RuntimeError("Groq returned an empty response")
+            if not answer:
+                raise RuntimeError("Groq returned an empty response")
 
-        return answer
+            record_generation_usage(
+                generation,
+                getattr(response, "usage", None),
+            )
+
+            return answer
